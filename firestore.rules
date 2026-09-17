@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Each game room is one document under /rooms/{roomCode}.
+    // Anyone who knows the room code can read/write it — that's how
+    // "join with a code" works without needing user accounts.
+    // Room codes are short-lived and random, so this is fine for a
+    // casual game with friends, but don't store anything sensitive here.
+    match /rooms/{roomCode} {
+      allow read, write: if true;
+    }
+
+    // Everything else is locked down by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

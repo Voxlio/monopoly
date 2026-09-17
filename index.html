@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Naija Monopoly Online</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- ============================================================
+     FIREBASE
+     ============================================================ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+  :root{
+    --ng-green:#008751; --ng-green-dark:#00532f; --ng-white:#fffdf7;
+    --sand:#f3e6c8; --indigo:#1c2b4a; --terracotta:#c2542f; --ink:#1c1712;
+    --paper:#fbf6e9;
+    --brown:#8a5a3b; --lightblue:#66c2d6; --pink:#d9538b; --orange:#e08b2c;
+    --red:#c1392b; --yellow:#e2b83a; --green:#2f9e58; --darkblue:#1c3f7a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ng-green-dark);
+    background-image:
+      radial-gradient(circle at 10% 10%, rgba(255,255,255,.05) 0, transparent 40%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.03) 0 12px, transparent 12px 24px);
+    font-family:'Work Sans', sans-serif; color:var(--ink);
+    min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:20px;
+  }
+  h1,h2,h3{font-family:'Fraunces', serif; margin:0;}
+
+  .card{
+    max-width:560px; width:100%; background:var(--paper); border:3px solid var(--ink);
+    border-radius:6px; padding:32px 30px 30px; box-shadow:8px 8px 0 rgba(0,0,0,.35); margin-top:30px;
+  }
+  .eyebrow-strip{
+    height:10px; margin:-32px -30px 22px;
+    background:repeating-linear-gradient(90deg, var(--ng-green) 0 40px, var(--ng-white) 40px 80px);
+    border-bottom:3px solid var(--ink); border-radius:4px 4px 0 0;
+  }
+  .card h1{ font-size:2.3rem; font-weight:900; color:var(--ng-green-dark); line-height:1.05; }
+  .tagline{ font-size:1rem; color:#54493a; margin-top:8px; margin-bottom:24px; }
+  .field-label{ font-weight:600; font-size:.9rem; margin-bottom:6px; display:block; }
+  input[type=text]{
+    width:100%; padding:10px 12px; border:2px solid var(--ink); border-radius:5px;
+    font-family:'Work Sans'; font-size:1rem; background:#fff; margin-bottom:16px;
+  }
+  .tokens-row{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .token-choice{
+    width:34px; height:34px; border-radius:50%; border:3px solid transparent; cursor:pointer;
+  }
+  .token-choice.selected{ border-color:var(--ink); }
+  .btn{
+    padding:13px 20px; border:2px solid var(--ink); border-radius:5px; font-family:'Fraunces';
+    font-weight:700; font-size:1.05rem; cursor:pointer; box-shadow:4px 4px 0 rgba(0,0,0,.35);
+  }
+  .btn:active{ transform:translate(2px,2px); box-shadow:2px 2px 0 rgba(0,0,0,.35); }
+  .btn-primary{ background:var(--terracotta); color:#fff; width:100%; }
+  .btn-secondary{ background:#fff; width:100%; margin-top:10px; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .tabs{ display:flex; gap:8px; margin-bottom:20px; }
+  .tab{
+    flex:1; text-align:center; padding:10px; border:2px solid var(--ink); border-radius:5px;
+    cursor:pointer; font-weight:700; background:#fff;
+  }
+  .tab.active{ background:var(--ng-green); color:#fff; }
+  .note{ margin-top:16px; font-size:.82rem; color:#6b5f4d; line-height:1.5; }
+  .err{ color:#a02c1f; font-weight:600; font-size:.88rem; margin:-8px 0 14px; min-height:1.2em; }
+
+  #roomCodeBig{
+    font-family:'Fraunces'; font-weight:900; font-size:2.4rem; letter-spacing:.1em;
+    text-align:center; color:var(--ng-green-dark); background:#fff; border:2px dashed var(--ink);
+    border-radius:6px; padding:14px; margin-bottom:14px; cursor:pointer;
+  }
+  #lobbyPlayers{ display:flex; flex-direction:column; gap:8px; margin:16px 0; }
+  .lobby-player-row{
+    display:flex; align-items:center; gap:10px; padding:8px 10px; background:#fff;
+    border:2px solid var(--ink); border-radius:5px; font-weight:600;
+  }
+  .swatch{ width:22px; height:22px; border-radius:50%; border:2px solid var(--ink); flex-shrink:0; }
+
+  /* ---------- GAME SCREEN ---------- */
+  #gameScreen{ display:none; width:100%; max-width:1180px; }
+  .layout{ display:grid; grid-template-columns: 1fr 320px; gap:18px; align-items:start; }
+  @media (max-width: 980px){ .layout{ grid-template-columns: 1fr; } }
+  .board-wrap{ background:var(--paper); border:3px solid var(--ink); border-radius:6px; padding:10px; box-shadow:8px 8px 0 rgba(0,0,0,.35); }
+  #board{
+    display:grid; grid-template-columns:repeat(11, 1fr); grid-template-rows:repeat(11, 1fr);
+    aspect-ratio:1/1; width:100%; gap:2px; background:var(--ink); border:2px solid var(--ink);
+  }
+  .cell{ background:var(--ng-white); position:relative; display:flex; flex-direction:column; overflow:hidden; font-size:.55rem; line-height:1.1; }
+  .cell.corner{ align-items:center; justify-content:center; text-align:center; background:var(--sand); font-weight:700; }
+  .cell .band{ height:16%; width:100%; flex-shrink:0; }
+  .cell .body{ flex:1; padding:2px 3px; display:flex; flex-direction:column; justify-content:space-between; }
+  .cell .name{ font-weight:700; font-size:.5rem; hyphens:auto; }
+  .cell .price{ font-size:.48rem; color:#5a5142; }
+  .cell .owner-dot{ position:absolute; bottom:2px; right:2px; width:9px;height:9px; border-radius:50%; border:1px solid var(--ink); }
+  .cell .houses{ display:flex; gap:1px; position:absolute; top:18%; left:2px; }
+  .cell .houses span{ width:5px;height:5px;background:#2f9e58;border:.5px solid #163; }
+  .cell .houses span.hotel{ background:var(--terracotta); width:8px;height:6px; }
+  .band.brown{background:var(--brown);} .band.lightblue{background:var(--lightblue);} .band.pink{background:var(--pink);}
+  .band.orange{background:var(--orange);} .band.red{background:var(--red);} .band.yellow{background:var(--yellow);}
+  .band.green{background:var(--green);} .band.darkblue{background:var(--darkblue);}
+  .tokens-in-cell{ position:absolute; top:16%; right:1px; display:flex; flex-wrap:wrap; gap:1px; max-width:22px; }
+  .token{ width:9px;height:9px; border-radius:50%; border:1px solid var(--ink); }
+  #center{
+    grid-column:2/11; grid-row:2/11; background:var(--ng-green);
+    background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.06) 0 10px, transparent 10px 20px);
+    border:2px solid var(--ink); display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:6px; gap:4px;
+  }
+  #center h2{ color:#fff; font-size:1.5rem; letter-spacing:.02em; }
+  #center .sub{ color:var(--sand); font-size:.72rem; }
+  #center .roomtag{ color:#fff; background:rgba(0,0,0,.25); border-radius:4px; padding:2px 8px; font-size:.72rem; margin-top:4px;}
+
+  .panel{
+    background:var(--paper); border:3px solid var(--ink); border-radius:6px; box-shadow:8px 8px 0 rgba(0,0,0,.35);
+    padding:16px; display:flex; flex-direction:column; gap:14px; max-height:82vh; overflow-y:auto;
+  }
+  .panel h3{ font-size:1rem; border-bottom:2px solid var(--ink); padding-bottom:6px; }
+  .player-card{ border:2px solid var(--ink); border-radius:5px; padding:8px 10px; background:#fff; display:flex; flex-direction:column; gap:4px; }
+  .player-card.current{ box-shadow:0 0 0 3px var(--terracotta) inset; }
+  .player-card.bankrupt{ opacity:.4; text-decoration:line-through; }
+  .player-card.me{ background:#eefaf1; }
+  .player-card .row1{ display:flex; align-items:center; gap:8px; font-weight:700; }
+  .player-card .cash{ font-family:'Fraunces'; font-weight:700; color:var(--ng-green-dark); }
+  .player-card .props{ font-size:.75rem; color:#5a5142; }
+  #turnBanner{
+    background:var(--indigo); color:#fff; padding:10px 12px; border-radius:5px; font-weight:700;
+    text-align:center; font-size:.95rem;
+  }
+  #log{
+    font-size:.82rem; line-height:1.45; display:flex; flex-direction:column-reverse; gap:4px;
+    max-height:180px; overflow-y:auto; background:#fff; border:2px solid var(--ink); border-radius:5px; padding:8px 10px;
+  }
+  #log div{ border-bottom:1px dashed #ddd2b8; padding-bottom:3px; }
+  .actions{ display:flex; flex-direction:column; gap:8px; }
+  .actions button{
+    padding:9px 10px; border:2px solid var(--ink); border-radius:5px; background:#fff;
+    font-family:'Work Sans'; font-weight:600; cursor:pointer; text-align:left;
+  }
+  .actions button:hover{ background:var(--sand); }
+  .actions button.buy{ background:var(--ng-green); color:#fff; }
+  .actions button.build{ background:var(--yellow); }
+  .actions button:disabled{ opacity:.4; cursor:not-allowed; }
+  #diceArea{ display:flex; gap:8px; margin:6px 0; }
+  .die{ width:34px;height:34px; background:#fff; border:2px solid var(--ink); border-radius:6px; display:flex;align-items:center;justify-content:center; font-size:1.15rem; font-weight:700; }
+
+  #modalOverlay, #winOverlay{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  #modal, #winBox{
+    background:var(--paper); border:3px solid var(--ink); border-radius:6px; max-width:420px; width:100%;
+    padding:22px; box-shadow:8px 8px 0 rgba(0,0,0,.4); text-align:center;
+  }
+  #modal h3{ font-size:1.3rem; margin-bottom:8px; color:var(--ng-green-dark); }
+  #modal p{ font-size:.95rem; line-height:1.5; margin:10px 0 18px; }
+  .modal-btns{ display:flex; gap:10px; justify-content:center; }
+  #modal button, #winBox button{ padding:9px 18px; border:2px solid var(--ink); border-radius:5px; font-weight:700; cursor:pointer; font-family:'Work Sans'; }
+  #modal button.primary, #winBox button.primary{ background:var(--ng-green); color:#fff; }
+  #modal button.secondary{ background:#fff; }
+  .card-illustration{ font-size:2.2rem; margin-bottom:6px; }
+  #winBox h1{ color:var(--ng-green-dark); font-size:2.2rem; margin-bottom:10px; }
+  #connStatus{ position:fixed; top:10px; right:10px; font-size:.78rem; background:#fff; border:2px solid var(--ink); border-radius:20px; padding:4px 12px; font-weight:600; z-index:100;}
+</style>
+</head>
+<body>
+
+<div id="connStatus">connecting…</div>
+
+<!-- ================= LANDING ================= -->
+<div class="card" id="landing">
+  <div class="eyebrow-strip"></div>
+  <h1>Naija Monopoly<br>Online</h1>
+  <div class="tagline">Buy states, build houses, collect rent, dodge NEPA wahala — with friends anywhere, live.</div>
+
+  <div class="tabs">
+    <div class="tab active" id="tabCreate">Create Room</div>
+    <div class="tab" id="tabJoin">Join Room</div>
+  </div>
+
+  <span class="field-label">Your name</span>
+  <input type="text" id="nameInput" placeholder="e.g. Chidi" maxlength="18">
+
+  <span class="field-label">Pick your token colour</span>
+  <div class="tokens-row" id="tokenRow"></div>
+
+  <div id="joinCodeWrap" style="display:none;">
+    <span class="field-label">Room code</span>
+    <input type="text" id="joinCodeInput" placeholder="e.g. AB3K" maxlength="6" style="text-transform:uppercase;">
+  </div>
+
+  <div class="err" id="landingErr"></div>
+  <button class="btn btn-primary" id="landingActionBtn">Create Room</button>
+  <div class="note">Both players need an active internet connection. The host shares the code with friends — others select "Join Room" and enter it.</div>
+</div>
+
+<!-- ================= LOBBY ================= -->
+<div class="card" id="lobby" style="display:none;">
+  <div class="eyebrow-strip"></div>
+  <h1>Waiting Room</h1>
+  <div class="tagline">Share this code with your friends:</div>
+  <div id="roomCodeBig">----</div>
+  <div id="lobbyPlayers"></div>
+  <button class="btn btn-primary" id="startGameBtn" style="display:none;">Start Game</button>
+  <div class="note" id="lobbyNote">Waiting for the host to start the game…</div>
+</div>
+
+<!-- ================= GAME ================= -->
+<div id="gameScreen">
+  <div class="layout">
+    <div class="board-wrap">
+      <div id="turnBanner" style="margin-bottom:8px;"></div>
+      <div id="board"></div>
+    </div>
+    <div class="panel">
+      <div><h3>Players</h3><div id="players"></div></div>
+      <div class="actions" id="actions">
+        <h3>Your Move</h3>
+        <div id="diceArea"></div>
+        <div id="actionButtons"></div>
+      </div>
+      <div><h3>Game Log</h3><div id="log"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="modalOverlay"><div id="modal"></div></div>
+<div id="winOverlay"><div id="winBox"></div></div>
+
+<!-- ============================================================
+     GAME LOGIC
+     ============================================================ -->
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCa6NN5z-4h0zeB3VLm2shPRPqqj4WBQ4w",
+  authDomain: "naija-monopoly.firebaseapp.com",
+  databaseURL: "https://naija-monopoly-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "naija-monopoly",
+  storageBucket: "naija-monopoly.firebasestorage.app",
+  messagingSenderId: "408039686831",
+  appId: "1:408039686831:web:1839b9bbed59e3ce6a4a5a"
+};
+
+firebase.initializeApp(firebaseConfig);
+const dbFS = firebase.firestore();
+
+(function(){
+
+const TOKEN_COLORS = ['#c1392b','#1c3f7a','#e2b83a','#2f9e58','#8a5a3b','#d9538b'];
+const N = 200;
+const spaces = [
+  {i:0, type:'go', name:'GO', sub:'Collect ₦200k'},
+  {i:1, type:'prop', name:'Zamfara', group:'brown', price:60, rent:[2,10,30,90,160,250], houseCost:50},
+  {i:2, type:'chest', name:'Owambe Card'},
+  {i:3, type:'prop', name:'Kebbi', group:'brown', price:60, rent:[4,20,60,180,320,450], houseCost:50},
+  {i:4, type:'tax', name:'Tax Man (LIRS)', amount:200},
+  {i:5, type:'rr', name:'Lagos Motor Park', price:200},
+  {i:6, type:'prop', name:'Yobe', group:'lightblue', price:100, rent:[6,30,90,270,400,550], houseCost:50},
+  {i:7, type:'chance', name:'Wahala Card'},
+  {i:8, type:'prop', name:'Borno', group:'lightblue', price:100, rent:[6,30,90,270,400,550], houseCost:50},
+  {i:9, type:'prop', name:'Gombe', group:'lightblue', price:120, rent:[8,40,100,300,450,600], houseCost:50},
+  {i:10, type:'jail', name:'EFCC Detention', sub:'Just Visiting'},
+  {i:11, type:'prop', name:'Kogi', group:'pink', price:140, rent:[10,50,150,450,625,750], houseCost:100},
+  {i:12, type:'util', name:'NEPA Power', price:150},
+  {i:13, type:'prop', name:'Kwara', group:'pink', price:140, rent:[10,50,150,450,625,750], houseCost:100},
+  {i:14, type:'prop', name:'Niger', group:'pink', price:160, rent:[12,60,180,500,700,900], houseCost:100},
+  {i:15, type:'rr', name:'Kano Motor Park', price:200},
+  {i:16, type:'prop', name:'Bayelsa', group:'orange', price:180, rent:[14,70,200,550,750,950], houseCost:100},
+  {i:17, type:'chest', name:'Owambe Card'},
+  {i:18, type:'prop', name:'Cross River', group:'orange', price:180, rent:[14,70,200,550,750,950], houseCost:100},
+  {i:19, type:'prop', name:'Akwa Ibom', group:'orange', price:200, rent:[16,80,220,600,800,1000], houseCost:100},
+  {i:20, type:'parking', name:'Village Square', sub:'Free Parking'},
+  {i:21, type:'prop', name:'Delta', group:'red', price:220, rent:[18,90,250,700,875,1050], houseCost:150},
+  {i:22, type:'chance', name:'Wahala Card'},
+  {i:23, type:'prop', name:'Edo', group:'red', price:220, rent:[18,90,250,700,875,1050], houseCost:150},
+  {i:24, type:'prop', name:'Rivers', group:'red', price:240, rent:[20,100,300,750,925,1100], houseCost:150},
+  {i:25, type:'rr', name:'PH Motor Park', price:200},
+  {i:26, type:'prop', name:'Enugu', group:'yellow', price:260, rent:[22,110,330,800,975,1150], houseCost:150},
+  {i:27, type:'prop', name:'Anambra', group:'yellow', price:260, rent:[22,110,330,800,975,1150], houseCost:150},
+  {i:28, type:'util', name:'Water Corp', price:150},
+  {i:29, type:'prop', name:'Abia', group:'yellow', price:280, rent:[24,120,360,850,1025,1200], houseCost:150},
+  {i:30, type:'gotojail', name:'Go To EFCC'},
+  {i:31, type:'prop', name:'Ogun', group:'green', price:300, rent:[26,130,390,900,1100,1275], houseCost:200},
+  {i:32, type:'prop', name:'Oyo', group:'green', price:300, rent:[26,130,390,900,1100,1275], houseCost:200},
+  {i:33, type:'chest', name:'Owambe Card'},
+  {i:34, type:'prop', name:'Osun', group:'green', price:320, rent:[28,150,450,1000,1200,1400], houseCost:200},
+  {i:35, type:'rr', name:'Onitsha Motor Park', price:200},
+  {i:36, type:'chance', name:'Wahala Card'},
+  {i:37, type:'prop', name:'Lagos', group:'darkblue', price:350, rent:[35,175,500,1100,1300,1500], houseCost:200},
+  {i:38, type:'tax', name:'Customs Duty', amount:100},
+  {i:39, type:'prop', name:'FCT Abuja', group:'darkblue', price:400, rent:[50,200,600,1400,1700,2000], houseCost:200},
+];
+const groupCounts = {};
+spaces.forEach(s=>{ if(s.group){ groupCounts[s.group] = (groupCounts[s.group]||0)+1; } });
+const groupOrder = ['brown','lightblue','pink','orange','red','yellow','green','darkblue'];
+
+const chanceCards = [
+  {text:"Fuel scarcity dey bite hard. Skip your next turn.", effect:p=>p.skipTurn=true},
+  {text:"You won Big Brother Naija! Collect ₦200k.", effect:p=>p.cash+=200000},
+  {text:"NEPA brought light with no warning — advance to GO and collect ₦200k.", effect:(p,st)=>advanceTo(p,0,true,st)},
+  {text:"Okada accident. Pay ₦100k hospital bill.", effect:p=>p.cash-=100000},
+  {text:"Your jollof rice won 'Best in West Africa'. Collect ₦100k from every player.", effect:(p,st)=>collectFromAll(p,st,100)},
+  {text:"EFCC wants to ask you a few questions. Go directly to jail.", effect:(p,st)=>goToJail(p,st)},
+  {text:"Land prices don rise for Lagos — advance directly there.", effect:(p,st)=>advanceTo(p, spaces.findIndex(s=>s.name==='Lagos'), true, st)},
+  {text:"You got a promotion at work. Collect ₦150k.", effect:p=>p.cash+=150000},
+  {text:"Danfo bus broke down again. Pay ₦75k for repairs.", effect:p=>p.cash-=75000},
+  {text:"JAMB result came out fine — collect a ₦100k scholarship.", effect:p=>p.cash+=100000},
+  {text:"Go back 3 spaces.", effect:(p,st)=>advanceTo(p, ((p.pos-3)+40)%40, false, st)},
+  {text:"Pay each player ₦50k for petrol money.", effect:(p,st)=>payAll(p,st,50)},
+];
+const chestCards = [
+  {text:"Your uncle for village sent money. Collect ₦300k.", effect:p=>p.cash+=300000},
+  {text:"Naming ceremony ohh! Spend ₦100k on aso-ebi.", effect:p=>p.cash-=100000},
+  {text:"Your small business dey boom. Collect ₦250k.", effect:p=>p.cash+=250000},
+  {text:"School fees don land. Pay ₦200k.", effect:p=>p.cash-=200000},
+  {text:"Christmas don reach — collect ₦50k from every player.", effect:(p,st)=>collectFromAll(p,st,50)},
+  {text:"You hammered in Baba Ijebu! Collect ₦400k.", effect:p=>p.cash+=400000},
+  {text:"Generator don spoil again. Pay ₦150k for repair.", effect:p=>p.cash-=150000},
+  {text:"Church harvest offering. Donate ₦100k.", effect:p=>p.cash-=100000},
+  {text:"Wedding owambe gift money. Collect ₦150k.", effect:p=>p.cash+=150000},
+  {text:"Land inheritance from grandpa. Collect ₦500k.", effect:p=>p.cash+=500000},
+  {text:"You are the star of the naming list — collect ₦100k.", effect:p=>p.cash+=100000},
+  {text:"Get out of jail free — keep this card.", effect:p=>p.getOutOfJail=true},
+];
+
+function advanceTo(p, idx, passGo, st){
+  if(passGo && idx <= p.pos){ 
+    p.cash += N*1000; 
+    st.log.push(`${p.name} passed GO and collected ₦${N}k.`);
+  }
+  p.pos = idx;
+  if(st) resolveSpace(st, p, true);
+}
+
+function goToJail(p, st){ 
+  p.pos = 10; 
+  p.inJail = true; 
+  p.jailTurns = 0; 
+  if(st) st.log.push(`${p.name} has been sent straight to EFCC Detention!`);
+}
+
+function payAll(p, st, amountK){ 
+  st.players.forEach(o=>{ 
+    if(o.id!==p.id && !o.bankrupt){ 
+      p.cash -= amountK*1000; 
+      o.cash += amountK*1000; 
+    } 
+  }); 
+}
+
+function collectFromAll(p, st, amountK){ 
+  st.players.forEach(o=>{ 
+    if(o.id!==p.id && !o.bankrupt){ 
+      o.cash -= amountK*1000; 
+      p.cash += amountK*1000; 
+      checkBankruptcy(st, o);
+    } 
+  }); 
+}
+
+function playerOwnsFullGroup(playerId, ownership, group){
+  const total = groupCounts[group];
+  const owned = spaces.filter(s=>s.group===group && ownership[s.i] && ownership[s.i].owner===playerId).length;
+  return owned === total;
+}
+
+function uid(){
+  let id = localStorage.getItem('nm_playerId');
+  if(!id){ id = 'p_' + Math.random().toString(36).slice(2,10); localStorage.setItem('nm_playerId', id); }
+  return id;
+}
+const myId = uid();
+
+let mode = 'create';
+let selectedColor = TOKEN_COLORS[0];
+const tokenRow = document.getElementById('tokenRow');
+TOKEN_COLORS.forEach(c=>{
+  const d = document.createElement('div');
+  d.className = 'token-choice' + (c===selectedColor?' selected':'');
+  d.style.background = c;
+  d.onclick = ()=>{ selectedColor = c; document.querySelectorAll('.token-choice').forEach(el=>el.classList.remove('selected')); d.classList.add('selected'); };
+  tokenRow.appendChild(d);
+});
+
+document.getElementById('tabCreate').onclick = ()=>{
+  mode='create';
+  document.getElementById('tabCreate').classList.add('active');
+  document.getElementById('tabJoin').classList.remove('active');
+  document.getElementById('joinCodeWrap').style.display='none';
+  document.getElementById('landingActionBtn').textContent = 'Create Room';
+};
+document.getElementById('tabJoin').onclick = ()=>{
+  mode='join';
+  document.getElementById('tabJoin').classList.add('active');
+  document.getElementById('tabCreate').classList.remove('active');
+  document.getElementById('joinCodeWrap').style.display='block';
+  document.getElementById('landingActionBtn').textContent = 'Join Room';
+};
+
+function randomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s=''; for(let i=0;i<4;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+let roomCode = null;
+let unsubscribe = null;
+let latestState = null;
+
+document.getElementById('landingActionBtn').onclick = async function(){
+  const errEl = document.getElementById('landingErr');
+  errEl.textContent = '';
+  const name = document.getElementById('nameInput').value.trim();
+  if(!name){ errEl.textContent = 'Enter your name first.'; return; }
+
+  if(mode==='create'){
+    const code = randomCode();
+    const newPlayer = { id: myId, name, color: selectedColor, pos:0, cash:1500000, properties:[], inJail:false, jailTurns:0, skipTurn:false, getOutOfJail:false, bankrupt:false };
+    const initialState = {
+      status:'lobby', hostId: myId, players:[newPlayer], ownership:{}, currentIdx:0,
+      doublesCount:0, log:[`Room created by ${name}.`], winner:null, lastDice:null, turnPhase:'awaiting_roll'
+    };
+    try{
+      await dbFS.collection('rooms').doc(code).set(initialState);
+      roomCode = code;
+      localStorage.setItem('nm_room', code);
+      enterLobby(code);
+    }catch(e){ errEl.textContent = 'Could not create room: ' + e.message; }
+  } else {
+    const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+    if(!code){ errEl.textContent = 'Enter a room code.'; return; }
+    try{
+      const ref = dbFS.collection('rooms').doc(code);
+      const snap = await ref.get();
+      if(!snap.exists){ errEl.textContent = 'No room with that code.'; return; }
+      const state = snap.data();
+      if(state.status !== 'lobby'){ errEl.textContent = 'That game has already started.'; return; }
+      if(state.players.length >= 6){ errEl.textContent = 'Room is full (6 max).'; return; }
+      if(!state.players.find(p=>p.id===myId)){
+        const newPlayer = { id: myId, name, color: selectedColor, pos:0, cash:1500000, properties:[], inJail:false, jailTurns:0, skipTurn:false, getOutOfJail:false, bankrupt:false };
+        state.players.push(newPlayer);
+        state.log.push(`${name} joined the room.`);
+        await ref.set(state);
+      }
+      roomCode = code;
+      localStorage.setItem('nm_room', code);
+      enterLobby(code);
+    }catch(e){ errEl.textContent = 'Could not join room: ' + e.message; }
+  }
+};
+
+function enterLobby(code){
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('lobby').style.display = 'block';
+  document.getElementById('roomCodeBig').textContent = code;
+  document.getElementById('roomCodeBig').onclick = ()=>{
+    navigator.clipboard && navigator.clipboard.writeText(code);
+  };
+  subscribeRoom(code);
+}
+
+function subscribeRoom(code){
+  if(unsubscribe) unsubscribe();
+  unsubscribe = dbFS.collection('rooms').doc(code).onSnapshot(snap=>{
+    document.getElementById('connStatus').textContent = 'online ✓ live';
+    if(!snap.exists) return;
+    latestState = snap.data();
+    if(latestState.status === 'lobby'){
+      renderLobby(latestState);
+    } else {
+      if(document.getElementById('gameScreen').style.display !== 'block'){
+        document.getElementById('lobby').style.display = 'none';
+        document.getElementById('gameScreen').style.display = 'block';
+        buildBoard();
+      }
+      renderGame(latestState);
+    }
+  }, err=>{
+    document.getElementById('connStatus').textContent = 'connection error';
+  });
+}
+
+function renderLobby(state){
+  const wrap = document.getElementById('lobbyPlayers');
+  wrap.innerHTML = '';
+  state.players.forEach(p=>{
+    const row = document.createElement('div');
+    row.className = 'lobby-player-row';
+    row.innerHTML = `<span class="swatch" style="background:${p.color}"></span>${p.name}${p.id===state.hostId?' (host)':''}${p.id===myId?' — you':''}`;
+    wrap.appendChild(row);
+  });
+  const startBtn = document.getElementById('startGameBtn');
+  const note = document.getElementById('lobbyNote');
+  if(state.hostId === myId){
+    startBtn.style.display = 'block';
+    startBtn.disabled = state.players.length < 2;
+    note.textContent = state.players.length < 2 ? 'Need at least 2 players to start.' : 'Ready when you are!';
+  } else {
+    startBtn.style.display = 'none';
+    note.textContent = 'Waiting for the host to start the game…';
+  }
+}
+
+document.getElementById('startGameBtn').onclick = async function(){
+  if(!latestState || latestState.hostId !== myId) return;
+  const state = latestState;
+  state.status = 'active';
+  state.turnPhase = 'awaiting_roll';
+  state.log.push(`Game started with ${state.players.length} players. ${state.players[0].name} goes first.`);
+  await dbFS.collection('rooms').doc(roomCode).set(state);
+};
+
+const boardEl = document.getElementById('board');
+function gridPosFor(i){
+  let row, col;
+  if(i<=10){ row=11; col = i===0 ? 11 : (11-i); }
+  else if(i<=20){ col=1; row = 11-(i-10); }
+  else if(i<=30){ row=1; col = 1+(i-20); }
+  else { col=11; row = 1+(i-30); }
+  return {row,col};
+}
+const ICONS = { go:'➡️', jail:'🚔', parking:'🌳', gotojail:'👮', tax:'💸', chance:'❓', chest:'🎁', rr:'🚌', util:'💡' };
+
+let boardBuilt = false;
+function buildBoard(){
+  if(boardBuilt) return;
+  boardBuilt = true;
+  boardEl.innerHTML = '';
+  const center = document.createElement('div');
+  center.id = 'center';
+  center.innerHTML = `<h2>NAIJA<br>MONOPOLY</h2><div class="sub">36 states + Abuja</div><div class="roomtag">Room ${roomCode}</div>`;
+  boardEl.appendChild(center);
+  spaces.forEach(s=>{
+    const {row,col} = gridPosFor(s.i);
+    const cell = document.createElement('div');
+    cell.id = `cell-${s.i}`;
+    cell.style.gridRow = row; cell.style.gridColumn = col;
+    const isCorner = [0,10,20,30].includes(s.i);
+    cell.className = 'cell' + (isCorner ? ' corner' : '');
+    if(s.type==='prop'){
+      cell.innerHTML = `<div class="band ${s.group}"></div>
+        <div class="body"><div class="name">${s.name}</div><div class="price">₦${s.price}k</div></div>
+        <div class="houses" id="houses-${s.i}"></div>
+        <div class="owner-dot" id="dot-${s.i}" style="display:none;"></div>`;
+    } else if(isCorner){
+      cell.innerHTML = `<div class="icon">${ICONS[s.type]||''}</div><div class="name">${s.name}</div>${s.sub?`<div class="price">${s.sub}</div>`:''}`;
+    } else {
+      cell.innerHTML = `<div class="body" style="align-items:center; text-align:center; justify-content:center;">
+          <div class="icon">${ICONS[s.type]||''}</div><div class="name">${s.name}</div>
+          ${s.price?`<div class="price">₦${s.price}k</div>`:''}
+          ${s.amount?`<div class="price">Pay ₦${s.amount}k</div>`:''}</div>`;
+    }
+    const tokLayer = document.createElement('div');
+    tokLayer.className = 'tokens-in-cell'; tokLayer.id = `tokens-${s.i}`;
+    cell.appendChild(tokLayer);
+    boardEl.appendChild(cell);
+  });
+}
+
+function renderGame(state){
+  if(state.status === 'over'){
+    showWin(state);
+  }
+  spaces.forEach(s=>{ const l=document.getElementById(`tokens-${s.i}`); if(l) l.innerHTML=''; });
+  state.players.forEach(p=>{
+    if(p.bankrupt) return;
+    const l = document.getElementById(`tokens-${p.pos}`);
+    if(l){ const t=document.createElement('div'); t.className='token'; t.style.background=p.color; l.appendChild(t); }
+  });
+  spaces.forEach(s=>{
+    if(s.type!=='prop') return;
+    const dot = document.getElementById(`dot-${s.i}`);
+    const houseWrap = document.getElementById(`houses-${s.i}`);
+    const own = state.ownership[s.i];
+    if(own){
+      dot.style.display='block'; dot.style.background = own.ownerColor;
+      houseWrap.innerHTML='';
+      if(own.houses===5){ houseWrap.innerHTML = `<span class="hotel"></span>`; }
+      else { for(let h=0;h<own.houses;h++){ houseWrap.innerHTML += `<span></span>`; } }
+    } else { dot.style.display='none'; houseWrap.innerHTML=''; }
+  });
+  const wrap = document.getElementById('players');
+  wrap.innerHTML = '';
+  state.players.forEach((p,idx)=>{
+    const card = document.createElement('div');
+    card.className = 'player-card' + (idx===state.currentIdx?' current':'') + (p.bankrupt?' bankrupt':'') + (p.id===myId?' me':'');
+    const ownedNames = p.properties.map(i=>spaces[i].name).join(', ') || '—';
+    card.innerHTML = `<div class="row1"><span class="swatch" style="width:16px;height:16px;background:${p.color}"></span>${p.name}${p.id===myId?' (you)':''}${p.inJail?' 🚔':''}</div>
+      <div class="cash">₦${(p.cash/1000).toLocaleString()}k</div>
+      <div class="props">${ownedNames}</div>`;
+    wrap.appendChild(card);
+  });
+  const logEl = document.getElementById('log');
+  logEl.innerHTML = '';
+  (state.log||[]).slice(-30).forEach(msg=>{ const d=document.createElement('div'); d.textContent=msg; logEl.prepend(d); });
+  const current = state.players[state.currentIdx];
+  const banner = document.getElementById('turnBanner');
+  const isMyTurn = current && current.id === myId && !current.bankrupt && state.status==='active';
+  banner.textContent = current ? (isMyTurn ? "It's YOUR turn!" : `Waiting for ${current.name}…`) : '';
+  const diceArea = document.getElementById('diceArea');
+  diceArea.innerHTML = state.lastDice ? `<div class="die">${state.lastDice[0]}</div><div class="die">${state.lastDice[1]}</div>` : '';
+
+  if(state._pendingCard && state._pendingCard.playerId === myId){
+    showCardModal(state._pendingCard);
+  } else if(!state._pendingCard) {
+    document.getElementById('modalOverlay').style.display = 'none';
+  }
+
+  renderActionButtons(state, isMyTurn);
+}
+
+function showCardModal(card){
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="card-illustration">${card.type === 'Wahala Card' ? '❓' : '🎁'}</div>
+    <h3>${card.type}</h3>
+    <p>${card.text}</p>
+    <div class="modal-btns">
+      <button class="primary" id="dismissCardBtn">Acknowledge</button>
+    </div>
+  `;
+  document.getElementById('modalOverlay').style.display = 'flex';
+  document.getElementById('dismissCardBtn').onclick = async ()=>{
+    delete latestState._pendingCard;
+    document.getElementById('modalOverlay').style.display = 'none';
+    await saveState(latestState);
+  };
+}
+
+async function saveState(state){
+  await dbFS.collection('rooms').doc(roomCode).set(state);
+}
+
+const actionButtons = document.getElementById('actionButtons');
+
+function renderActionButtons(state, isMyTurn){
+  actionButtons.innerHTML = '';
+  if(state.status !== 'active' || !isMyTurn) return;
+  const p = state.players[state.currentIdx];
+
+  if(!state.turnPhase || state.turnPhase === 'awaiting_roll'){
+    const rollBtn = document.createElement('button');
+    rollBtn.className='buy';
+    rollBtn.textContent = '🎲 Roll Dice';
+    rollBtn.onclick = ()=>doRoll(state);
+    actionButtons.appendChild(rollBtn);
+    return;
+  }
+
+  if(state.turnPhase === 'awaiting_end'){
+    const s = spaces[p.pos];
+    if((s.type==='prop'||s.type==='rr'||s.type==='util') && !state.ownership[s.i]){
+      const btn = document.createElement('button');
+      btn.className='buy';
+      btn.textContent = `Buy ${s.name} — ₦${s.price}k`;
+      btn.disabled = p.cash < s.price*1000;
+      btn.onclick = ()=>doBuy(state, s);
+      actionButtons.appendChild(btn);
+    }
+    groupOrder.forEach(g=>{
+      if(playerOwnsFullGroup(p.id, state.ownership, g)){
+        spaces.filter(sp=>sp.group===g).forEach(sp=>{
+          const own = state.ownership[sp.i];
+          if(own && own.houses<5){
+            const btn = document.createElement('button');
+            btn.className='build';
+            const label = own.houses===4 ? 'hotel' : `house #${own.houses+1}`;
+            btn.textContent = `Build ${label} on ${sp.name} — ₦${sp.houseCost}k`;
+            btn.disabled = p.cash < sp.houseCost*1000;
+            btn.onclick = ()=>doBuild(state, sp, own);
+            actionButtons.appendChild(btn);
+          }
+        });
+      }
+    });
+    if(p.inJail){
+      if(p.getOutOfJail){
+        const b = document.createElement('button');
+        b.textContent = 'Use "Get Out of Jail Free" card';
+        b.onclick = async ()=>{ 
+          p.getOutOfJail=false; p.inJail=false; p.jailTurns=0; 
+          state.log.push(`${p.name} used a Get Out of Jail Free card.`); 
+          await saveState(state); 
+        };
+        actionButtons.appendChild(b);
+      }
+      const b2 = document.createElement('button');
+      b2.textContent = 'Pay ₦50k bail';
+      b2.disabled = p.cash < 50000;
+      b2.onclick = async ()=>{ 
+        p.cash-=50000; p.inJail=false; p.jailTurns=0; 
+        state.log.push(`${p.name} paid ₦50k bail.`); 
+        await saveState(state); 
+      };
+      actionButtons.appendChild(b2);
+    }
+
+    const endBtn = document.createElement('button');
+    if(state.doublesCount > 0 && !p.inJail){
+      endBtn.className = 'buy';
+      endBtn.textContent = '🎲 Roll Again (Doubles!)';
+      endBtn.onclick = async ()=>{
+        state.turnPhase = 'awaiting_roll';
+        await saveState(state);
+      };
+    } else {
+      endBtn.textContent = 'End Turn';
+      endBtn.onclick = ()=>doEndTurn(state);
+    }
+    actionButtons.appendChild(endBtn);
+  }
+}
+
+function checkBankruptcy(state, p){
+  if(p.cash < 0 && !p.bankrupt){
+    p.bankrupt = true;
+    state.log.push(`💀 ${p.name} went bankrupt and is eliminated!`);
+    p.properties.forEach(i=>{ delete state.ownership[i]; });
+    p.properties = [];
+    const alive = state.players.filter(x=>!x.bankrupt);
+    if(alive.length===1){ state.status='over'; state.winner = alive[0].id; }
+  }
+}
+
+async function doRoll(state){
+  const p = state.players[state.currentIdx];
+  if(p.skipTurn){
+    p.skipTurn = false;
+    state.log.push(`${p.name} skipped turn due to fuel scarcity.`);
+    return doEndTurn(state);
+  }
+  const d1 = 1+Math.floor(Math.random()*6), d2 = 1+Math.floor(Math.random()*6);
+  state.lastDice = [d1,d2];
+  const isDouble = d1===d2;
+
+  if(p.inJail){
+    if(isDouble){
+      p.inJail=false; p.jailTurns=0;
+      state.log.push(`${p.name} rolled doubles and broke out of EFCC Detention!`);
+      movePlayer(state, p, d1+d2);
+    } else {
+      p.jailTurns++;
+      if(p.jailTurns>=3){
+        p.cash -= 50000; p.inJail=false; p.jailTurns=0;
+        state.log.push(`${p.name} paid ₦50k bail after 3 failed attempts.`);
+        movePlayer(state, p, d1+d2);
+      } else {
+        state.log.push(`${p.name} remains in EFCC Detention (attempt ${p.jailTurns}/3).`);
+      }
+    }
+    state.doublesCount = 0;
+  } else {
+    if(isDouble){
+      state.doublesCount = (state.doublesCount||0)+1;
+      if(state.doublesCount===3){
+        state.log.push(`${p.name} rolled 3 doubles consecutively — sent straight to EFCC!`);
+        goToJail(p, state);
+        state.doublesCount = 0;
+        state.turnPhase='awaiting_end';
+        await saveState(state);
+        return;
+      }
+    } else {
+      state.doublesCount = 0;
+    }
+    movePlayer(state, p, d1+d2);
+  }
+
+  state.turnPhase = 'awaiting_end';
+  await saveState(state);
+}
+
+function movePlayer(state, p, steps){
+  const oldPos = p.pos;
+  let newPos = (oldPos+steps)%40;
+  if(newPos < oldPos){ 
+    p.cash += N*1000; 
+    state.log.push(`${p.name} passed GO and collected ₦${N}k.`); 
+  }
+  p.pos = newPos;
+  state.log.push(`${p.name} rolled ${steps} and stepped onto ${spaces[newPos].name}.`);
+  resolveSpace(state, p);
+}
+
+function resolveSpace(state, p, isRebound = false){
+  const s = spaces[p.pos];
+  if(s.type==='prop'||s.type==='rr'||s.type==='util'){
+    const own = state.ownership[s.i];
+    if(own && own.owner !== p.id){
+      payRent(state, p, s, own);
+    }
+  } else if(s.type==='tax'){
+    p.cash -= s.amount*1000;
+    state.log.push(`${p.name} paid ₦${s.amount}k for ${s.name}.`);
+    checkBankruptcy(state, p);
+  } else if(s.type==='chance' && !isRebound){
+    const card = chanceCards[Math.floor(Math.random()*chanceCards.length)];
+    state._pendingCard = {type:'Wahala Card', text:card.text, playerId:p.id};
+    card.effect(p, state);
+    checkBankruptcy(state, p);
+    state.log.push(`Wahala Card: ${card.text}`);
+  } else if(s.type==='chest' && !isRebound){
+    const card = chestCards[Math.floor(Math.random()*chestCards.length)];
+    state._pendingCard = {type:'Owambe Card', text:card.text, playerId:p.id};
+    card.effect(p, state);
+    checkBankruptcy(state, p);
+    state.log.push(`Owambe Card: ${card.text}`);
+  } else if(s.type==='gotojail'){
+    goToJail(p, state);
+  }
+}
+
+function payRent(state, p, s, own){
+  const ownerP = state.players.find(x=>x.id===own.owner);
+  if(!ownerP || ownerP.bankrupt) return;
+  let rent = 0;
+  if(s.type==='prop'){
+    rent = s.rent[own.houses];
+    if(own.houses===0 && playerOwnsFullGroup(ownerP.id, state.ownership, s.group)) rent *= 2;
+  } else if(s.type==='rr'){
+    const countOwned = ownerP.properties.filter(i=>spaces[i].type==='rr').length;
+    rent = [25,50,100,200][countOwned-1] || 25;
+  } else if(s.type==='util'){
+    const countOwned = ownerP.properties.filter(i=>spaces[i].type==='util').length;
+    const d1=1+Math.floor(Math.random()*6), d2=1+Math.floor(Math.random()*6);
+    rent = (countOwned===2?10:4)*(d1+d2);
+  }
+  p.cash -= rent*1000;
+  ownerP.cash += rent*1000;
+  state.log.push(`${p.name} paid ₦${rent}k rent to ${ownerP.name} for ${s.name}.`);
+  checkBankruptcy(state, p);
+}
+
+async function doBuy(state, s){
+  const p = state.players[state.currentIdx];
+  p.cash -= s.price*1000;
+  p.properties.push(s.i);
+  state.ownership[s.i] = { owner: p.id, ownerColor: p.color, houses: 0 };
+  state.log.push(`${p.name} bought ${s.name} for ₦${s.price}k.`);
+  await saveState(state);
+}
+
+async function doBuild(state, sp, own){
+  const p = state.players[state.currentIdx];
+  const label = own.houses===4 ? 'hotel' : `house #${own.houses+1}`;
+  p.cash -= sp.houseCost*1000;
+  own.houses++;
+  state.log.push(`${p.name} built a ${label} on ${sp.name}.`);
+  await saveState(state);
+}
+
+async function doEndTurn(state){
+  state.doublesCount = 0;
+  state.lastDice = null;
+  state.turnPhase = 'awaiting_roll';
+  let idx = state.currentIdx;
+  for(let k=0;k<state.players.length;k++){
+    idx = (idx+1)%state.players.length;
+    if(!state.players[idx].bankrupt) break;
+  }
+  state.currentIdx = idx;
+  state.log.push(`— It's now ${state.players[idx].name}'s turn —`);
+  await saveState(state);
+}
+
+let winShown = false;
+function showWin(state){
+  if(winShown) return;
+  winShown = true;
+  const winner = state.players.find(p=>p.id===state.winner);
+  document.getElementById('winBox').innerHTML = `<h1>🏆 ${winner ? winner.name : 'Someone'} Wins!</h1>
+    <p style="margin-bottom:20px;">Last player standing. Oya, celebrate with some jollof!</p>
+    <button class="primary" onclick="localStorage.removeItem('nm_room'); location.reload()">Back to Start</button>`;
+  document.getElementById('winOverlay').style.display = 'flex';
+}
+
+window.addEventListener('load', async ()=>{
+  const savedRoom = localStorage.getItem('nm_room');
+  if(savedRoom){
+    try{
+      const snap = await dbFS.collection('rooms').doc(savedRoom).get();
+      if(snap.exists && snap.data().players.find(p=>p.id===myId)){
+        roomCode = savedRoom;
+        document.getElementById('landing').style.display='none';
+        const state = snap.data();
+        if(state.status==='lobby'){
+          document.getElementById('lobby').style.display='block';
+          document.getElementById('roomCodeBig').textContent = savedRoom;
+        } else {
+          document.getElementById('gameScreen').style.display='block';
+          buildBoard();
+        }
+        subscribeRoom(savedRoom);
+      }
+    }catch(e){ }
+  }
+});
+
+})();
+</script>
+</body>
+</html>
