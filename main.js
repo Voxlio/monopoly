@@ -14,20 +14,6 @@ const dbFS = firebase.firestore();
 (function(){
 
 const TOKEN_COLORS = ['#c1392b','#1c3f7a','#e2b83a','#2f9e58','#8a5a3b','#d9538b'];
-const AVAILABLE_ICONS = ['crown', 'car', 'flame', 'gem', 'banknote', 'shield', 'zap', 'rocket'];
-
-const ICONS = {
-  go: 'arrow-right-circle',
-  jail: 'shield-alert',
-  parking: 'trees',
-  gotojail: 'siren',
-  tax: 'receipt',
-  chance: 'help-circle',
-  chest: 'gift',
-  rr: 'bus',
-  util: 'zap'
-};
-
 const N = 200;
 const spaces = [
   {i:0, type:'go', name:'GO', sub:'Collect ₦200k'},
@@ -155,32 +141,13 @@ const myId = uid();
 
 let mode = 'create';
 let selectedColor = TOKEN_COLORS[0];
-let selectedIcon = AVAILABLE_ICONS[0];
-
 const tokenRow = document.getElementById('tokenRow');
 TOKEN_COLORS.forEach(c=>{
   const d = document.createElement('div');
   d.className = 'token-choice' + (c===selectedColor?' selected':'');
   d.style.background = c;
-  d.onclick = ()=>{ 
-    selectedColor = c; 
-    document.querySelectorAll('.token-choice').forEach(el=>el.classList.remove('selected')); 
-    d.classList.add('selected'); 
-  };
+  d.onclick = ()=>{ selectedColor = c; document.querySelectorAll('.token-choice').forEach(el=>el.classList.remove('selected')); d.classList.add('selected'); };
   tokenRow.appendChild(d);
-});
-
-const iconRow = document.getElementById('iconRow');
-AVAILABLE_ICONS.forEach(name=>{
-  const d = document.createElement('div');
-  d.className = 'lucide-icon-choice' + (name===selectedIcon?' selected':'');
-  d.innerHTML = `<i data-lucide="${name}"></i>`;
-  d.onclick = ()=>{ 
-    selectedIcon = name; 
-    document.querySelectorAll('.lucide-icon-choice').forEach(el=>el.classList.remove('selected')); 
-    d.classList.add('selected'); 
-  };
-  iconRow.appendChild(d);
 });
 
 document.getElementById('tabCreate').onclick = ()=>{
@@ -217,20 +184,7 @@ document.getElementById('landingActionBtn').onclick = async function(){
 
   if(mode==='create'){
     const code = randomCode();
-    const newPlayer = { 
-      id: myId, 
-      name, 
-      color: selectedColor, 
-      avatar: selectedIcon, 
-      pos:0, 
-      cash:1500000, 
-      properties:[], 
-      inJail:false, 
-      jailTurns:0, 
-      skipTurn:false, 
-      getOutOfJail:false, 
-      bankrupt:false 
-    };
+    const newPlayer = { id: myId, name, color: selectedColor, pos:0, cash:1500000, properties:[], inJail:false, jailTurns:0, skipTurn:false, getOutOfJail:false, bankrupt:false };
     const initialState = {
       status:'lobby', hostId: myId, players:[newPlayer], ownership:{}, currentIdx:0,
       doublesCount:0, log:[`Room created by ${name}.`], winner:null, lastDice:null, turnPhase:'awaiting_roll',
@@ -253,20 +207,7 @@ document.getElementById('landingActionBtn').onclick = async function(){
       if(state.status !== 'lobby'){ errEl.textContent = 'That game has already started.'; return; }
       if(state.players.length >= 6){ errEl.textContent = 'Room is full (6 max).'; return; }
       if(!state.players.find(p=>p.id===myId)){
-        const newPlayer = { 
-          id: myId, 
-          name, 
-          color: selectedColor, 
-          avatar: selectedIcon, 
-          pos:0, 
-          cash:1500000, 
-          properties:[], 
-          inJail:false, 
-          jailTurns:0, 
-          skipTurn:false, 
-          getOutOfJail:false, 
-          bankrupt:false 
-        };
+        const newPlayer = { id: myId, name, color: selectedColor, pos:0, cash:1500000, properties:[], inJail:false, jailTurns:0, skipTurn:false, getOutOfJail:false, bankrupt:false };
         state.players.push(newPlayer);
         state.log.push(`${name} joined the room.`);
         await ref.set(state);
@@ -315,9 +256,7 @@ function renderLobby(state){
   state.players.forEach(p=>{
     const row = document.createElement('div');
     row.className = 'lobby-player-row';
-    row.innerHTML = `<span class="swatch" style="background:${p.color}">
-      <i data-lucide="${p.avatar || 'user'}"></i>
-    </span>${p.name}${p.id===state.hostId?' (host)':''}${p.id===myId?' — you':''}`;
+    row.innerHTML = `<span class="swatch" style="background:${p.color}"></span>${p.name}${p.id===state.hostId?' (host)':''}${p.id===myId?' — you':''}`;
     wrap.appendChild(row);
   });
   const startBtn = document.getElementById('startGameBtn');
@@ -330,7 +269,6 @@ function renderLobby(state){
     startBtn.style.display = 'none';
     note.textContent = 'Waiting for the host to start the game…';
   }
-  if(window.lucide) lucide.createIcons();
 }
 
 document.getElementById('startGameBtn').onclick = async function(){
@@ -351,6 +289,7 @@ function gridPosFor(i){
   else { col=11; row = 1+(i-30); }
   return {row,col};
 }
+const ICONS = { go:'➡️', jail:'🚔', parking:'🌳', gotojail:'👮', tax:'💸', chance:'❓', chest:'🎁', rr:'🚌', util:'💡' };
 
 let boardBuilt = false;
 function buildBoard(){
@@ -374,12 +313,10 @@ function buildBoard(){
         <div class="houses" id="houses-${s.i}"></div>
         <div class="owner-dot" id="dot-${s.i}" style="display:none;"></div>`;
     } else if(isCorner){
-      cell.innerHTML = `<div class="board-icon"><i data-lucide="${ICONS[s.type]||'circle'}"></i></div>
-        <div class="name">${s.name}</div>${s.sub?`<div class="price">${s.sub}</div>`:''}`;
+      cell.innerHTML = `<div class="icon">${ICONS[s.type]||''}</div><div class="name">${s.name}</div>${s.sub?`<div class="price">${s.sub}</div>`:''}`;
     } else {
       cell.innerHTML = `<div class="body" style="align-items:center; text-align:center; justify-content:center;">
-          <div class="board-icon"><i data-lucide="${ICONS[s.type]||'circle'}"></i></div>
-          <div class="name">${s.name}</div>
+          <div class="icon">${ICONS[s.type]||''}</div><div class="name">${s.name}</div>
           ${s.price?`<div class="price">₦${s.price}k</div>`:''}
           ${s.amount?`<div class="price">Pay ₦${s.amount}k</div>`:''}</div>`;
     }
@@ -388,7 +325,6 @@ function buildBoard(){
     cell.appendChild(tokLayer);
     boardEl.appendChild(cell);
   });
-  if(window.lucide) lucide.createIcons();
 }
 
 function renderGame(state){
@@ -399,15 +335,8 @@ function renderGame(state){
   state.players.forEach(p=>{
     if(p.bankrupt) return;
     const l = document.getElementById(`tokens-${p.pos}`);
-    if(l){ 
-      const t = document.createElement('div'); 
-      t.className = 'token-lucide'; 
-      t.style.background = p.color; 
-      t.innerHTML = `<i data-lucide="${p.avatar || 'user'}"></i>`;
-      l.appendChild(t); 
-    }
+    if(l){ const t=document.createElement('div'); t.className='token'; t.style.background=p.color; l.appendChild(t); }
   });
-
   spaces.forEach(s=>{
     const cell = document.getElementById(`cell-${s.i}`);
     if(!cell) return;
@@ -438,12 +367,7 @@ function renderGame(state){
       const m = state.ownership[i] && state.ownership[i].isMortgaged ? ' (M)' : '';
       return spaces[i].name + m;
     }).join(', ') || '—';
-    card.innerHTML = `<div class="row1">
-        <span class="swatch" style="background:${p.color}">
-          <i data-lucide="${p.avatar || 'user'}"></i>
-        </span>
-        ${p.name}${p.id===myId?' (you)':''}${p.inJail?' 🚔':''}
-      </div>
+    card.innerHTML = `<div class="row1"><span class="swatch" style="width:16px;height:16px;background:${p.color}"></span>${p.name}${p.id===myId?' (you)':''}${p.inJail?' 🚔':''}</div>
       <div class="cash">₦${(p.cash/1000).toLocaleString()}k</div>
       <div class="props">${ownedNames}</div>`;
     wrap.appendChild(card);
@@ -473,14 +397,13 @@ function renderGame(state){
   }
 
   renderActionButtons(state, isMyTurn);
-  if(window.lucide) lucide.createIcons();
 }
 
 function showCardModal(card){
   const modal = document.getElementById('modal');
   modal.removeAttribute('data-local-open');
   modal.innerHTML = `
-    <div class="card-illustration"><i data-lucide="${card.type === 'Wahala Card' ? 'help-circle' : 'gift'}"></i></div>
+    <div class="card-illustration">${card.type === 'Wahala Card' ? '❓' : '🎁'}</div>
     <h3>${card.type}</h3>
     <p>${card.text}</p>
     <div class="modal-btns">
@@ -488,7 +411,6 @@ function showCardModal(card){
     </div>
   `;
   document.getElementById('modalOverlay').style.display = 'flex';
-  if(window.lucide) lucide.createIcons();
   document.getElementById('dismissCardBtn').onclick = async ()=>{
     delete latestState._pendingCard;
     document.getElementById('modalOverlay').style.display = 'none';
@@ -1067,7 +989,6 @@ function showWin(state){
 }
 
 window.addEventListener('load', async ()=>{
-  if(window.lucide) lucide.createIcons();
   const savedRoom = localStorage.getItem('nm_room');
   if(savedRoom){
     try{
