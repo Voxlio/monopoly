@@ -71,7 +71,25 @@
           <div id="diceArea"></div>
           <div id="actionButtons"></div>
         </div>
-        <div><h3>Game Log</h3><div id="log"></div></div>
+        
+        <!-- Live Chat & Activity Hub -->
+        <div class="comm-panel">
+          <div class="comm-tabs">
+            <button class="comm-tab active" id="btnTabLog">Game Log</button>
+            <button class="comm-tab" id="btnTabChat">Live Chat <span id="chatBadge" class="chat-badge" style="display:none;">0</span></button>
+          </div>
+          <div id="logWrap">
+            <div id="log"></div>
+          </div>
+          <div id="chatWrap" style="display:none;">
+            <div id="chatMessages"></div>
+            <form id="chatForm">
+              <input type="text" id="chatInput" placeholder="Type banter here..." maxlength="100" autocomplete="off">
+              <button type="submit" class="btn-chat-send">Send</button>
+            </form>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

@@ -11,6 +11,109 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const dbFS = firebase.firestore();
 
+/* ============================================================
+   WEB AUDIO SOUND SYNTHESIZER
+   ============================================================ */
+const SoundFX = (function(){
+  let ctx = null;
+
+  function initCtx(){
+    if(!ctx){
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if(AudioCtx) ctx = new AudioCtx();
+    }
+    if(ctx && ctx.state === 'suspended'){
+      ctx.resume();
+    }
+  }
+
+  return {
+    playDice: function(){
+      initCtx();
+      if(!ctx) return;
+      const now = ctx.currentTime;
+      for(let i=0; i<6; i++){
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140 + Math.random()*220, now + i*0.04);
+        gain.gain.setValueAtTime(0.2, now + i*0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i*0.04 + 0.035);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + i*0.04);
+        osc.stop(now + i*0.04 + 0.04);
+      }
+    },
+    playStep: function(){
+      initCtx();
+      if(!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.06);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.06);
+    },
+    playCash: function(){
+      initCtx();
+      if(!ctx) return;
+      const now = ctx.currentTime;
+      [987.77, 1318.51].forEach((freq, idx)=>{
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx*0.09);
+        gain.gain.setValueAtTime(0.25, now + idx*0.09);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx*0.09 + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + idx*0.09);
+        osc.stop(now + idx*0.09 + 0.36);
+      });
+    },
+    playSiren: function(){
+      initCtx();
+      if(!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(550, now);
+      osc.frequency.linearRampToValueAtTime(880, now + 0.2);
+      osc.frequency.linearRampToValueAtTime(550, now + 0.4);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    },
+    playNepaHum: function(){
+      initCtx();
+      if(!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(60, now);
+      osc.frequency.linearRampToValueAtTime(50, now + 0.5);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.65);
+    }
+  };
+})();
+
 (function(){
 
 const TOKEN_COLORS = ['#c1392b','#1c3f7a','#e2b83a','#2f9e58','#8a5a3b','#d9538b'];
@@ -63,31 +166,31 @@ spaces.forEach(s=>{ if(s.group){ groupCounts[s.group] = (groupCounts[s.group]||0
 const groupOrder = ['brown','lightblue','pink','orange','red','yellow','green','darkblue'];
 
 const chanceCards = [
-  {text:"Fuel scarcity dey bite hard. Skip your next turn.", effect:p=>p.skipTurn=true},
-  {text:"You won Big Brother Naija! Collect ₦200k.", effect:p=>p.cash+=200000},
+  {text:"Fuel scarcity dey bite hard. Skip your next turn.", effect:p=>{ p.skipTurn=true; SoundFX.playNepaHum(); }},
+  {text:"You won Big Brother Naija! Collect ₦200k.", effect:p=>{ p.cash+=200000; SoundFX.playCash(); }},
   {text:"NEPA brought light with no warning — advance to GO and collect ₦200k.", effect:(p,st)=>advanceTo(p,0,true,st)},
   {text:"Okada accident. Pay ₦100k hospital bill.", effect:p=>p.cash-=100000},
-  {text:"Your jollof rice won 'Best in West Africa'. Collect ₦100k from every player.", effect:(p,st)=>collectFromAll(p,st,100)},
+  {text:"Your jollof rice won 'Best in West Africa'. Collect ₦100k from every player.", effect:(p,st)=>{ collectFromAll(p,st,100); SoundFX.playCash(); }},
   {text:"EFCC wants to ask you a few questions. Go directly to jail.", effect:(p,st)=>goToJail(p,st)},
   {text:"Land prices don rise for Lagos — advance directly there.", effect:(p,st)=>advanceTo(p, spaces.findIndex(s=>s.name==='Lagos'), true, st)},
-  {text:"You got a promotion at work. Collect ₦150k.", effect:p=>p.cash+=150000},
+  {text:"You got a promotion at work. Collect ₦150k.", effect:p=>{ p.cash+=150000; SoundFX.playCash(); }},
   {text:"Danfo bus broke down again. Pay ₦75k for repairs.", effect:p=>p.cash-=75000},
-  {text:"JAMB result came out fine — collect a ₦100k scholarship.", effect:p=>p.cash+=100000},
+  {text:"JAMB result came out fine — collect a ₦100k scholarship.", effect:p=>{ p.cash+=100000; SoundFX.playCash(); }},
   {text:"Go back 3 spaces.", effect:(p,st)=>advanceTo(p, ((p.pos-3)+40)%40, false, st)},
   {text:"Pay each player ₦50k for petrol money.", effect:(p,st)=>payAll(p,st,50)},
 ];
 const chestCards = [
-  {text:"Your uncle for village sent money. Collect ₦300k.", effect:p=>p.cash+=300000},
+  {text:"Your uncle for village sent money. Collect ₦300k.", effect:p=>{ p.cash+=300000; SoundFX.playCash(); }},
   {text:"Naming ceremony ohh! Spend ₦100k on aso-ebi.", effect:p=>p.cash-=100000},
-  {text:"Your small business dey boom. Collect ₦250k.", effect:p=>p.cash+=250000},
+  {text:"Your small business dey boom. Collect ₦250k.", effect:p=>{ p.cash+=250000; SoundFX.playCash(); }},
   {text:"School fees don land. Pay ₦200k.", effect:p=>p.cash-=200000},
-  {text:"Christmas don reach — collect ₦50k from every player.", effect:(p,st)=>collectFromAll(p,st,50)},
-  {text:"You hammered in Baba Ijebu! Collect ₦400k.", effect:p=>p.cash+=400000},
-  {text:"Generator don spoil again. Pay ₦150k for repair.", effect:p=>p.cash-=150000},
+  {text:"Christmas don reach — collect ₦50k from every player.", effect:(p,st)=>{ collectFromAll(p,st,50); SoundFX.playCash(); }},
+  {text:"You hammered in Baba Ijebu! Collect ₦400k.", effect:p=>{ p.cash+=400000; SoundFX.playCash(); }},
+  {text:"Generator don spoil again. Pay ₦150k for repair.", effect:p=>{ p.cash-=150000; SoundFX.playNepaHum(); }},
   {text:"Church harvest offering. Donate ₦100k.", effect:p=>p.cash-=100000},
-  {text:"Wedding owambe gift money. Collect ₦150k.", effect:p=>p.cash+=150000},
-  {text:"Land inheritance from grandpa. Collect ₦500k.", effect:p=>p.cash+=500000},
-  {text:"You are the star of the naming list — collect ₦100k.", effect:p=>p.cash+=100000},
+  {text:"Wedding owambe gift money. Collect ₦150k.", effect:p=>{ p.cash+=150000; SoundFX.playCash(); }},
+  {text:"Land inheritance from grandpa. Collect ₦500k.", effect:p=>{ p.cash+=500000; SoundFX.playCash(); }},
+  {text:"You are the star of the naming list — collect ₦100k.", effect:p=>{ p.cash+=100000; SoundFX.playCash(); }},
   {text:"Get out of jail free — keep this card.", effect:p=>p.getOutOfJail=true},
 ];
 
@@ -95,6 +198,7 @@ function advanceTo(p, idx, passGo, st){
   if(passGo && idx <= p.pos){ 
     p.cash += N*1000; 
     st.log.push(`${p.name} passed GO and collected ₦${N}k.`);
+    SoundFX.playCash();
   }
   p.pos = idx;
   if(st) resolveSpace(st, p, true);
@@ -104,6 +208,7 @@ function goToJail(p, st){
   p.pos = 10; 
   p.inJail = true; 
   p.jailTurns = 0; 
+  SoundFX.playSiren();
   if(st) st.log.push(`${p.name} has been sent straight to EFCC Detention!`);
 }
 
@@ -175,6 +280,10 @@ let roomCode = null;
 let unsubscribe = null;
 let latestState = null;
 let auctionInterval = null;
+let activeCommTab = 'log';
+let unreadChatCount = 0;
+let lastKnownChatLength = 0;
+let displayedPositions = {}; // tracking positions for animation
 
 document.getElementById('landingActionBtn').onclick = async function(){
   const errEl = document.getElementById('landingErr');
@@ -187,7 +296,7 @@ document.getElementById('landingActionBtn').onclick = async function(){
     const newPlayer = { id: myId, name, color: selectedColor, pos:0, cash:1500000, properties:[], inJail:false, jailTurns:0, skipTurn:false, getOutOfJail:false, bankrupt:false };
     const initialState = {
       status:'lobby', hostId: myId, players:[newPlayer], ownership:{}, currentIdx:0,
-      doublesCount:0, log:[`Room created by ${name}.`], winner:null, lastDice:null, turnPhase:'awaiting_roll',
+      doublesCount:0, log:[`Room created by ${name}.`], chat:[], winner:null, lastDice:null, turnPhase:'awaiting_roll',
       tradeOffer: null, auction: null
     };
     try{
@@ -306,7 +415,9 @@ function buildBoard(){
     cell.id = `cell-${s.i}`;
     cell.style.gridRow = row; cell.style.gridColumn = col;
     const isCorner = [0,10,20,30].includes(s.i);
-    cell.className = 'cell' + (isCorner ? ' corner' : '');
+    cell.className = 'cell clickable-space' + (isCorner ? ' corner' : '');
+    cell.onclick = () => openPropertyDeed(s.i);
+
     if(s.type==='prop'){
       cell.innerHTML = `<div class="band ${s.group}"></div>
         <div class="body"><div class="name">${s.name}</div><div class="price">₦${s.price}k</div></div>
@@ -327,16 +438,80 @@ function buildBoard(){
   });
 }
 
+function calculateNetWorth(player, ownership){
+  let total = player.cash;
+  (player.properties || []).forEach(idx => {
+    const s = spaces[idx];
+    const own = ownership[idx];
+    if(own && own.isMortgaged){
+      total += (s.price * 1000) / 2;
+    } else {
+      total += s.price * 1000;
+      if(own && own.houses > 0){
+        total += own.houses * (s.houseCost * 1000);
+      }
+    }
+  });
+  return total;
+}
+
+/* ============================================================
+   TOKEN ANIMATION & BOARD RENDERING
+   ============================================================ */
+function renderAllTokens(state){
+  spaces.forEach(s=>{ const l=document.getElementById(`tokens-${s.i}`); if(l) l.innerHTML=''; });
+  state.players.forEach(p=>{
+    if(p.bankrupt) return;
+    const curPos = displayedPositions[p.id] !== undefined ? displayedPositions[p.id] : p.pos;
+    const l = document.getElementById(`tokens-${curPos}`);
+    if(l){
+      const t = document.createElement('div');
+      t.className = 'token';
+      t.id = `token-el-${p.id}`;
+      t.style.background = p.color;
+      l.appendChild(t);
+    }
+  });
+}
+
+async function animateMovePlayer(p, targetPos, onComplete){
+  let current = displayedPositions[p.id] !== undefined ? displayedPositions[p.id] : p.pos;
+  if(current === targetPos){
+    if(onComplete) onComplete();
+    return;
+  }
+  
+  const stepInterval = setInterval(()=>{
+    current = (current + 1) % 40;
+    displayedPositions[p.id] = current;
+    SoundFX.playStep();
+    renderAllTokens(latestState);
+    const tokEl = document.getElementById(`token-el-${p.id}`);
+    if(tokEl) tokEl.classList.add('token-hop');
+
+    if(current === targetPos){
+      clearInterval(stepInterval);
+      if(onComplete) onComplete();
+    }
+  }, 140);
+}
+
 function renderGame(state){
   if(state.status === 'over'){
     showWin(state);
   }
-  spaces.forEach(s=>{ const l=document.getElementById(`tokens-${s.i}`); if(l) l.innerHTML=''; });
+
+  // Update token positions cleanly
   state.players.forEach(p=>{
-    if(p.bankrupt) return;
-    const l = document.getElementById(`tokens-${p.pos}`);
-    if(l){ const t=document.createElement('div'); t.className='token'; t.style.background=p.color; l.appendChild(t); }
+    if(displayedPositions[p.id] === undefined){
+      displayedPositions[p.id] = p.pos;
+    } else if(displayedPositions[p.id] !== p.pos && p.id !== myId){
+      // Smooth catch-up for remote player movements
+      animateMovePlayer(p, p.pos, null);
+    }
   });
+  renderAllTokens(state);
+
   spaces.forEach(s=>{
     const cell = document.getElementById(`cell-${s.i}`);
     if(!cell) return;
@@ -373,9 +548,14 @@ function renderGame(state){
     wrap.appendChild(card);
   });
 
+  // Game Log
   const logEl = document.getElementById('log');
   logEl.innerHTML = '';
   (state.log||[]).slice(-30).forEach(msg=>{ const d=document.createElement('div'); d.textContent=msg; logEl.prepend(d); });
+  
+  // Chat update & unread badge
+  renderChat(state);
+
   const current = state.players[state.currentIdx];
   const banner = document.getElementById('turnBanner');
   const isMyTurn = current && current.id === myId && !current.bankrupt && state.status==='active';
@@ -397,6 +577,172 @@ function renderGame(state){
   }
 
   renderActionButtons(state, isMyTurn);
+}
+
+/* ============================================================
+   IN-GAME LIVE CHAT SYSTEM
+   ============================================================ */
+function renderChat(state){
+  const chatList = state.chat || [];
+  const wrap = document.getElementById('chatMessages');
+  if(!wrap) return;
+
+  if(activeCommTab !== 'chat' && chatList.length > lastKnownChatLength){
+    unreadChatCount += (chatList.length - lastKnownChatLength);
+    const badge = document.getElementById('chatBadge');
+    if(badge){
+      badge.textContent = unreadChatCount;
+      badge.style.display = 'inline-block';
+    }
+  }
+  lastKnownChatLength = chatList.length;
+
+  wrap.innerHTML = '';
+  chatList.slice(-40).forEach(c=>{
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg' + (c.senderId===myId ? ' my-msg' : '');
+    msg.innerHTML = `<span class="chat-sender" style="color:${c.color}">${c.senderName}:</span> <span class="chat-text">${escapeHtml(c.text)}</span>`;
+    wrap.appendChild(msg);
+  });
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function escapeHtml(text){
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+document.getElementById('btnTabLog').onclick = ()=>{
+  activeCommTab = 'log';
+  document.getElementById('btnTabLog').classList.add('active');
+  document.getElementById('btnTabChat').classList.remove('active');
+  document.getElementById('logWrap').style.display = 'block';
+  document.getElementById('chatWrap').style.display = 'none';
+};
+
+document.getElementById('btnTabChat').onclick = ()=>{
+  activeCommTab = 'chat';
+  document.getElementById('btnTabChat').classList.add('active');
+  document.getElementById('btnTabLog').classList.remove('active');
+  document.getElementById('logWrap').style.display = 'none';
+  document.getElementById('chatWrap').style.display = 'flex';
+  unreadChatCount = 0;
+  const badge = document.getElementById('chatBadge');
+  if(badge) badge.style.display = 'none';
+  const wrap = document.getElementById('chatMessages');
+  if(wrap) wrap.scrollTop = wrap.scrollHeight;
+};
+
+document.getElementById('chatForm').onsubmit = async (e)=>{
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text || !latestState) return;
+
+  const me = latestState.players.find(p => p.id === myId);
+  const newMsg = {
+    senderId: myId,
+    senderName: me ? me.name : 'Player',
+    color: me ? me.color : '#1c1712',
+    text,
+    time: Date.now()
+  };
+
+  input.value = '';
+  if(!latestState.chat) latestState.chat = [];
+  latestState.chat.push(newMsg);
+  await saveState(latestState);
+};
+
+/* ============================================================
+   DYNAMIC TITLE DEED MODAL
+   ============================================================ */
+function openPropertyDeed(idx){
+  const s = spaces[idx];
+  const modal = document.getElementById('modal');
+  modal.dataset.localOpen = "true";
+
+  let deedContent = '';
+  const own = latestState && latestState.ownership ? latestState.ownership[idx] : null;
+  const ownerPlayer = own && latestState ? latestState.players.find(p=>p.id===own.owner) : null;
+  const statusStr = ownerPlayer ? `Owned by <strong>${ownerPlayer.name}</strong> ${own.isMortgaged ? '(Mortgaged)' : ''}` : 'Unowned / For Sale';
+
+  if(s.type === 'prop'){
+    deedContent = `
+      <div class="deed-card">
+        <div class="deed-header band ${s.group}">
+          <small>TITLE DEED</small>
+          <h2>${s.name.toUpperCase()}</h2>
+        </div>
+        <div class="deed-body">
+          <div class="deed-row"><span>Base Rent</span><span>₦${s.rent[0]}k</span></div>
+          <div class="deed-row"><span>Rent with 1 House</span><span>₦${s.rent[1]}k</span></div>
+          <div class="deed-row"><span>Rent with 2 Houses</span><span>₦${s.rent[2]}k</span></div>
+          <div class="deed-row"><span>Rent with 3 Houses</span><span>₦${s.rent[3]}k</span></div>
+          <div class="deed-row"><span>Rent with 4 Houses</span><span>₦${s.rent[4]}k</span></div>
+          <div class="deed-row"><span>Rent with HOTEL</span><span>₦${s.rent[5]}k</span></div>
+          <hr class="deed-divider">
+          <div class="deed-row"><span>Cost per House / Hotel</span><span>₦${s.houseCost}k</span></div>
+          <div class="deed-row"><span>Mortgage Value</span><span>₦${s.price / 2}k</span></div>
+          <div class="deed-status">${statusStr}</div>
+        </div>
+      </div>
+    `;
+  } else if(s.type === 'rr'){
+    deedContent = `
+      <div class="deed-card">
+        <div class="deed-header" style="background:#4a5568; color:#fff;">
+          <small>MOTOR PARK</small>
+          <h2>${s.name.toUpperCase()}</h2>
+        </div>
+        <div class="deed-body">
+          <div class="deed-row"><span>Rent (1 Park)</span><span>₦25k</span></div>
+          <div class="deed-row"><span>Rent (2 Parks)</span><span>₦50k</span></div>
+          <div class="deed-row"><span>Rent (3 Parks)</span><span>₦100k</span></div>
+          <div class="deed-row"><span>Rent (4 Parks)</span><span>₦200k</span></div>
+          <hr class="deed-divider">
+          <div class="deed-row"><span>Mortgage Value</span><span>₦${s.price / 2}k</span></div>
+          <div class="deed-status">${statusStr}</div>
+        </div>
+      </div>
+    `;
+  } else if(s.type === 'util'){
+    deedContent = `
+      <div class="deed-card">
+        <div class="deed-header" style="background:#2c3e50; color:#fff;">
+          <small>PUBLIC UTILITY</small>
+          <h2>${s.name.toUpperCase()}</h2>
+        </div>
+        <div class="deed-body">
+          <p style="font-size:0.8rem; margin:6px 0;">If 1 Utility is owned, rent is 4× dice roll.<br>If both Utilities are owned, rent is 10× dice roll.</p>
+          <hr class="deed-divider">
+          <div class="deed-row"><span>Mortgage Value</span><span>₦${s.price / 2}k</span></div>
+          <div class="deed-status">${statusStr}</div>
+        </div>
+      </div>
+    `;
+  } else {
+    deedContent = `
+      <div class="deed-card">
+        <div class="deed-header" style="background:var(--sand); color:var(--ink);">
+          <small>BOARD SPACE</small>
+          <h2>${s.name.toUpperCase()}</h2>
+        </div>
+        <div class="deed-body">
+          <p style="font-size:0.9rem; margin:14px 0;">${s.sub || (s.amount ? `Pay ₦${s.amount}k` : 'Standard Board Space')}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  modal.innerHTML = `
+    ${deedContent}
+    <div style="margin-top:12px;">
+      <button class="primary" onclick="closeLocalModal()">Close</button>
+    </div>
+  `;
+  document.getElementById('modalOverlay').style.display = 'flex';
 }
 
 function showCardModal(card){
@@ -439,6 +785,15 @@ function renderActionButtons(state, isMyTurn){
     mortBtn.textContent = '🏦 Mortgage / Unmortgage';
     mortBtn.onclick = () => openMortgageModal(state);
     actionButtons.appendChild(mortBtn);
+  }
+
+  // End Game button for Host
+  if(state.hostId === myId){
+    const endGHostBtn = document.createElement('button');
+    endGHostBtn.className = 'end-game-btn';
+    endGHostBtn.textContent = '🛑 End Game';
+    endGHostBtn.onclick = () => confirmEndGame(state);
+    actionButtons.appendChild(endGHostBtn);
   }
 
   if(!isMyTurn) return;
@@ -525,6 +880,30 @@ function renderActionButtons(state, isMyTurn){
   }
 }
 
+async function confirmEndGame(state){
+  if(!confirm("Are you sure you want to end the game now? The richest player based on total net worth will be crowned winner!")) return;
+  
+  const activePlayers = state.players.filter(p => !p.bankrupt);
+  let winner = activePlayers[0];
+  let maxWorth = -Infinity;
+
+  activePlayers.forEach(p => {
+    const worth = calculateNetWorth(p, state.ownership);
+    if(worth > maxWorth){
+      maxWorth = worth;
+      winner = p;
+    }
+  });
+
+  state.status = 'over';
+  state.winner = winner ? winner.id : null;
+  state.endReason = 'host_ended';
+  state.winnerNetWorth = maxWorth;
+  state.log.push(`🛑 Game was ended by host. ${winner ? winner.name : 'Nobody'} had the highest net worth (₦${(maxWorth/1000).toLocaleString()}k)!`);
+  
+  await saveState(state);
+}
+
 function checkBankruptcy(state, p){
   if(p.cash < 0 && !p.bankrupt){
     p.bankrupt = true;
@@ -532,7 +911,11 @@ function checkBankruptcy(state, p){
     p.properties.forEach(i=>{ delete state.ownership[i]; });
     p.properties = [];
     const alive = state.players.filter(x=>!x.bankrupt);
-    if(alive.length===1){ state.status='over'; state.winner = alive[0].id; }
+    if(alive.length===1){ 
+      state.status='over'; 
+      state.winner = alive[0].id; 
+      state.endReason = 'last_man';
+    }
   }
 }
 
@@ -543,6 +926,9 @@ async function doRoll(state){
     state.log.push(`${p.name} skipped turn due to fuel scarcity.`);
     return doEndTurn(state);
   }
+
+  SoundFX.playDice();
+
   const d1 = 1+Math.floor(Math.random()*6), d2 = 1+Math.floor(Math.random()*6);
   state.lastDice = [d1,d2];
   const isDouble = d1===d2;
@@ -551,15 +937,27 @@ async function doRoll(state){
     if(isDouble){
       p.inJail=false; p.jailTurns=0;
       state.log.push(`${p.name} rolled doubles and broke out of EFCC Detention!`);
-      movePlayer(state, p, d1+d2);
+      const targetPos = (p.pos + d1 + d2) % 40;
+      animateMovePlayer(p, targetPos, async ()=>{
+        movePlayer(state, p, d1+d2);
+        state.turnPhase = 'awaiting_end';
+        await saveState(state);
+      });
     } else {
       p.jailTurns++;
       if(p.jailTurns>=3){
         p.cash -= 50000; p.inJail=false; p.jailTurns=0;
         state.log.push(`${p.name} paid ₦50k bail after 3 failed attempts.`);
-        movePlayer(state, p, d1+d2);
+        const targetPos = (p.pos + d1 + d2) % 40;
+        animateMovePlayer(p, targetPos, async ()=>{
+          movePlayer(state, p, d1+d2);
+          state.turnPhase = 'awaiting_end';
+          await saveState(state);
+        });
       } else {
         state.log.push(`${p.name} remains in EFCC Detention (attempt ${p.jailTurns}/3).`);
+        state.turnPhase = 'awaiting_end';
+        await saveState(state);
       }
     }
     state.doublesCount = 0;
@@ -577,11 +975,14 @@ async function doRoll(state){
     } else {
       state.doublesCount = 0;
     }
-    movePlayer(state, p, d1+d2);
-  }
 
-  state.turnPhase = 'awaiting_end';
-  await saveState(state);
+    const targetPos = (p.pos + d1 + d2) % 40;
+    animateMovePlayer(p, targetPos, async ()=>{
+      movePlayer(state, p, d1+d2);
+      state.turnPhase = 'awaiting_end';
+      await saveState(state);
+    });
+  }
 }
 
 function movePlayer(state, p, steps){
@@ -590,6 +991,7 @@ function movePlayer(state, p, steps){
   if(newPos < oldPos){ 
     p.cash += N*1000; 
     state.log.push(`${p.name} passed GO and collected ₦${N}k.`); 
+    SoundFX.playCash();
   }
   p.pos = newPos;
   state.log.push(`${p.name} rolled ${steps} and stepped onto ${spaces[newPos].name}.`);
@@ -599,6 +1001,7 @@ function movePlayer(state, p, steps){
 function resolveSpace(state, p, isRebound = false){
   const s = spaces[p.pos];
   if(s.type==='prop'||s.type==='rr'||s.type==='util'){
+    if(s.name === 'NEPA Power') SoundFX.playNepaHum();
     const own = state.ownership[s.i];
     if(own && own.owner !== p.id){
       payRent(state, p, s, own);
@@ -655,6 +1058,7 @@ async function doBuy(state, s){
   p.properties.push(s.i);
   state.ownership[s.i] = { owner: p.id, ownerColor: p.color, houses: 0, isMortgaged: false };
   state.log.push(`${p.name} bought ${s.name} for ₦${s.price}k.`);
+  SoundFX.playCash();
   await saveState(state);
 }
 
@@ -758,6 +1162,7 @@ async function resolveAuction(state){
     winner.properties.push(s.i);
     state.ownership[s.i] = { owner: winner.id, ownerColor: winner.color, houses: 0, isMortgaged: false };
     state.log.push(`🎉 ${winner.name} won the auction for ${s.name} at ₦${(state.auction.highestBid/1000)}k!`);
+    SoundFX.playCash();
   } else {
     state.log.push(`Auction for ${s.name} ended with no bids.`);
   }
@@ -819,6 +1224,7 @@ window.mortgageProp = async function(idx){
   own.isMortgaged = true;
   me.cash += mortVal;
   latestState.log.push(`${me.name} mortgaged ${s.name} for ₦${mortVal/1000}k.`);
+  SoundFX.playCash();
   await saveState(latestState);
   openMortgageModal(latestState);
 };
@@ -965,6 +1371,7 @@ function showTradeOfferModal(state){
 
     latestState.log.push(`🤝 Trade completed between ${fromP.name} and ${me.name}!`);
     latestState.tradeOffer = null;
+    SoundFX.playCash();
     document.getElementById('modalOverlay').style.display = 'none';
     await saveState(latestState);
   };
@@ -982,8 +1389,16 @@ function showWin(state){
   if(winShown) return;
   winShown = true;
   const winner = state.players.find(p=>p.id===state.winner);
-  document.getElementById('winBox').innerHTML = `<h1>🏆 ${winner ? winner.name : 'Someone'} Wins!</h1>
-    <p style="margin-bottom:20px;">Last player standing. Oya, celebrate with some jollof!</p>
+  let subText = "Last player standing. Oya, celebrate with some jollof!";
+
+  if(state.endReason === 'host_ended' && winner){
+    const worth = state.winnerNetWorth || calculateNetWorth(winner, state.ownership);
+    subText = `Game was called by the host! ${winner.name} finished at the top with a total net worth of ₦${(worth/1000).toLocaleString()}k!`;
+  }
+
+  SoundFX.playCash();
+  document.getElementById('winBox').innerHTML = `<h1>🏆 ${winner ? winner.name : 'Nobody'} Wins!</h1>
+    <p style="margin-bottom:20px;">${subText}</p>
     <button class="primary" onclick="localStorage.removeItem('nm_room'); location.reload()">Back to Start</button>`;
   document.getElementById('winOverlay').style.display = 'flex';
 }
